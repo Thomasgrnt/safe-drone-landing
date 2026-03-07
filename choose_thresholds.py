@@ -16,7 +16,6 @@ OUTPUT_CSV = "threshold_search.csv"
 CONF_GRID = np.arange(0.30, 0.71, 0.05)
 AREA_GRID = np.arange(0.01, 0.101, 0.01)
 
-# On pénalise plus les faux SAFE que les faux NOT_SAFE
 FALSE_SAFE_COST = 5.0
 FALSE_NOT_SAFE_COST = 1.0
 
