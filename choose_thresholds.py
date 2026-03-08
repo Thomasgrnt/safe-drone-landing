@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from ultralytics import YOLO
 
-MODEL_PATH = "runs/detect/landingpad_model/weights/best.pt"
 VAL_IMAGES = Path("dataset/images/val")
 VAL_LABELS = Path("dataset/labels/val")
 
@@ -20,6 +19,15 @@ FALSE_SAFE_COST = 5.0
 FALSE_NOT_SAFE_COST = 1.0
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+def find_best_model() -> str:
+    candidates = sorted(Path(".").glob("**/landingpad_model/weights/best.pt"))
+    if not candidates:
+        raise FileNotFoundError("Could not find any best.pt for landingpad_model")
+    model_path = str(candidates[-1])
+    print(f"Using model: {model_path}")
+    return model_path
 
 
 def has_ground_truth_pad(label_path: Path) -> bool:
@@ -61,10 +69,8 @@ def decision(max_conf: float, area_ratio: float, tau_conf: float, tau_area: floa
 
 
 def main():
-    if not Path(MODEL_PATH).exists():
-        raise FileNotFoundError(f"Missing model: {MODEL_PATH}")
-
-    model = YOLO(MODEL_PATH)
+    model_path = find_best_model()
+    model = YOLO(model_path)
 
     image_paths = sorted([p for p in VAL_IMAGES.iterdir() if p.suffix.lower() in IMAGE_EXTS])
     if not image_paths:
@@ -132,8 +138,6 @@ def main():
 
     print("Best thresholds saved to thresholds.json")
     print(json.dumps(best, indent=2))
-    print(f"Full grid search saved to {OUTPUT_CSV}")
-
 
 if __name__ == "__main__":
     main()
