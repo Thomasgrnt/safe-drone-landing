@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-MODEL_PATH = "runs/detect/landingpad_model/weights/best.pt"
+MODEL_PATH = "best.pt"
 THRESHOLDS_PATH = "thresholds.json"
 LOG_PATH = Path("live_demo_log.csv")
 
