@@ -4,10 +4,6 @@ from ultralytics import YOLO
 DATA_YAML = "landingpad.yaml"
 MODEL_NAME = "yolo11n.pt"
 
-# IMPORTANT
-PROJECT = "runs"
-RUN_NAME = "landingpad_model"
-
 IMG_SIZE = 640
 EPOCHS = 50
 BATCH = 16
@@ -26,14 +22,14 @@ def main():
         batch=BATCH,
         patience=PATIENCE,
         pretrained=True,
-        project=PROJECT,
-        name=RUN_NAME,
+        name="landingpad_model",
         exist_ok=True,
         verbose=True,
     )
 
     print("\nTraining finished.")
-    print(f"Best model should be here: {PROJECT}/detect/{RUN_NAME}/weights/best.pt")
+    print("Search for best.pt with:")
+    print("!find . -path '*landingpad_model/weights/best.pt'")
 
 if __name__ == "__main__":
     main()
