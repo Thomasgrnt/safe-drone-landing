@@ -2,18 +2,24 @@ import json
 from pathlib import Path
 
 import cv2
-import numpy as np
 import pandas as pd
 from ultralytics import YOLO
 
-MODEL_PATH = "runs/detect/landingpad_model/weights/best.pt"
 THRESHOLDS_PATH = "thresholds.json"
-
 DATA_YAML = "landingpad.yaml"
 TEST_IMAGES = Path("dataset/images/test")
 TEST_LABELS = Path("dataset/labels/test")
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+def find_best_model() -> str:
+    candidates = sorted(Path(".").glob("**/landingpad_model/weights/best.pt"))
+    if not candidates:
+        raise FileNotFoundError("Could not find any best.pt for landingpad_model")
+    model_path = str(candidates[-1])
+    print(f"Using model: {model_path}")
+    return model_path
 
 
 def has_ground_truth_pad(label_path: Path) -> bool:
@@ -40,7 +46,7 @@ def get_best_detection(model: YOLO, image_path: Path):
     confs = result.boxes.conf.cpu().numpy()
     xyxy = result.boxes.xyxy.cpu().numpy()
 
-    best_idx = int(np.argmax(confs))
+    best_idx = int(confs.argmax())
     best_conf = float(confs[best_idx])
 
     x1, y1, x2, y2 = xyxy[best_idx]
@@ -51,8 +57,6 @@ def get_best_detection(model: YOLO, image_path: Path):
 
 
 def main():
-    if not Path(MODEL_PATH).exists():
-        raise FileNotFoundError(f"Missing model: {MODEL_PATH}")
     if not Path(THRESHOLDS_PATH).exists():
         raise FileNotFoundError(f"Missing thresholds: {THRESHOLDS_PATH}")
 
@@ -62,19 +66,20 @@ def main():
     tau_conf = float(cfg["tau_conf"])
     tau_area = float(cfg["tau_area"])
 
-    model = YOLO(MODEL_PATH)
+    model_path = find_best_model()
+    model = YOLO(model_path)
 
     print("=== 1) Standard YOLO detection metrics on TEST ===")
     metrics = model.val(data=DATA_YAML, split="test", imgsz=640, verbose=False)
 
-    precision = float(metrics.box.mp)
-    recall = float(metrics.box.mr)
-    map50 = float(metrics.box.map50)
-    map5095 = float(metrics.box.map)
-
     metric_table = pd.DataFrame({
         "Metric": ["Precision", "Recall", "mAP@50", "mAP@50-95"],
-        "Value": [precision, recall, map50, map5095],
+        "Value": [
+            float(metrics.box.mp),
+            float(metrics.box.mr),
+            float(metrics.box.map50),
+            float(metrics.box.map),
+        ],
     })
     print(metric_table)
     metric_table.to_csv("test_detection_metrics.csv", index=False)
@@ -113,19 +118,22 @@ def main():
     print(df)
     df.to_csv("test_decision_results.csv", index=False)
 
-    decision_precision = tp / (tp + fp) if (tp + fp) else 0.0
-    decision_recall = tp / (tp + fn) if (tp + fn) else 0.0
-    decision_accuracy = (tp + tn) / max(1, tp + tn + fp + fn)
-
-    confusion_table = pd.DataFrame({
+    summary = pd.DataFrame({
         "Metric": ["TP", "FP", "TN", "FN", "Decision Precision", "Decision Recall", "Decision Accuracy"],
-        "Value": [tp, fp, tn, fn, round(decision_precision, 4), round(decision_recall, 4), round(decision_accuracy, 4)]
+        "Value": [
+            tp,
+            fp,
+            tn,
+            fn,
+            round(tp / (tp + fp), 4) if (tp + fp) else 0.0,
+            round(tp / (tp + fn), 4) if (tp + fn) else 0.0,
+            round((tp + tn) / max(1, tp + tn + fp + fn), 4),
+        ]
     })
 
     print("\nDecision summary:")
-    print(confusion_table)
-    confusion_table.to_csv("test_decision_summary.csv", index=False)
-
+    print(summary)
+    summary.to_csv("test_decision_summary.csv", index=False)
 
 if __name__ == "__main__":
     main()
